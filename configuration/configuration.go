@@ -11,6 +11,7 @@ import (
 
 // ActionDelegate : 
 type ActionDelegate func()
+// ActionWithArgumentDelegate :
 type ActionWithArgumentDelegate func(argument string)
 
 // Configuration : Configuration
@@ -40,10 +41,10 @@ type ClubhouseConfiguration struct {
 type MenuEntry struct {
 	Name string `json:"name"`
 	Key string `json:"key"`
+	Alias string `json:"alias"`
 	Action string `json:"action"`
 	ActionArgument string `json:"actionArgument"`
 	Menu Menu `json:"menu"`
-	Alias string `json:"alias"`
 }
 
 // Menu :
@@ -66,6 +67,56 @@ func getDefaultConfig() *Configuration {
 		},
 		Harvest: HarvestConfiguration {
 			HarvestAPIURL: "https://api.harvestapp.com/api/v2",
+			HarvestToken: "Get your Personal Access Token here: https://id.getharvest.com/developers",
+		},
+		Menu: Menu {
+			Name: "Argus",
+			Entries: []MenuEntry{
+				MenuEntry{
+					Name: "Harvest",
+					Key: "h",
+					Menu: Menu{
+						Name: "Harvest",
+						Entries: []MenuEntry{
+							MenuEntry{
+								Name: "Show me",
+								Key: "m",
+								Action: "api:harvest:showMe",
+							},
+							MenuEntry{
+								Name: "List Today",
+								Key: "l",
+								Action: "api:harvest:listToday",
+							},
+							MenuEntry{
+								Name: "List Yesterday",
+								Key: "y",
+								Action: "api:harvest:listYesterday",
+							},
+							MenuEntry{
+								Name: "Start Daily",
+								Key: "d",
+								Alias: "daily",
+								Action: "api:harvest:startTask",
+								ActionArgument: "HARVEST_PROJECT_ID_HERE:HARVEST_TASK_ID_HERE",
+							},
+							MenuEntry{
+								Name: "Continue most recent non-daily",
+								Key: "c",
+								Alias: "continue,cnt",
+								Action: "api:harvest:continueMostRecentNonDaily",
+								ActionArgument: "HARVEST_TASK_ID_HERE",
+							},
+							MenuEntry{
+								Name: "Stop currently running",
+								Key: "s",
+								Alias: "stop",
+								Action: "api:harvest:stopActive",
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
