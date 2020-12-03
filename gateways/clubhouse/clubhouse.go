@@ -65,6 +65,11 @@ func GetStories(sortBy string, filter string) []Story {
 	urlParts := []string{baseurl, "page_size=25", "query=" + query}
 	
 	fullURL := strings.Join(urlParts, "&");
+
+	if (completeConfig.Debug == true) {
+		fmt.Println("REQUEST")
+		fmt.Println(fmt.Sprintf("GET %s",fullURL))
+	}
 	
 	response, err := http.Get(fullURL)
 	logError(err)
@@ -73,8 +78,18 @@ func GetStories(sortBy string, filter string) []Story {
 	responseBody, err := ioutil.ReadAll(response.Body)
 	logError(err)
 
+	if  (completeConfig.Debug == true) {
+		fmt.Println("RESPONSE")
+		fmt.Println(response)
+	}
+
 	var responseData APIResponse
 	json.Unmarshal([]byte(responseBody), &responseData)
+
+	if  (completeConfig.Debug == true) {
+		fmt.Println("RESPONSE DATA")
+		fmt.Println(responseData)
+	}
 
 	return responseData.Stories
 }

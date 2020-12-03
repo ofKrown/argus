@@ -19,6 +19,7 @@ type Configuration struct {
 	Harvest HarvestConfiguration `json:"harvest"`
 	Clubhouse ClubhouseConfiguration `json:"clubhouse"`
 	Menu Menu `json:"menu"`
+	Debug bool `json:"debug"`
 }
 
 // HarvestConfiguration :
