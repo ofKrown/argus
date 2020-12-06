@@ -2,7 +2,6 @@ package clubhouse
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"fmt"
 	"github.com/gookit/color"
 	"../../configuration"
+	"../../util"
 )
 
 type colorizeDelegate func (...interface {}) string
@@ -42,7 +42,6 @@ type APIResponse struct {
 func GetStories(sortBy string, filter string) []Story {
 	completeConfig := configuration.GetConfig();
 	configuration := completeConfig.Clubhouse;
-	// var baseurl string = "https://api.clubhouse.io/api/v3/search/stories?token=5f057780-3565-4db8-a99d-996ee967904e&page_size=25&query=owsner%3Abernhardmatz"
 	baseurl := configuration.ClubhouseAPIURL + "?token=" + configuration.ClubhouseToken
 	clubhouseQueryParts := []string{}
 	clubhouseQueryParts = append(clubhouseQueryParts, "owner:" + configuration.ClubhouseUser)
@@ -66,35 +65,16 @@ func GetStories(sortBy string, filter string) []Story {
 	
 	fullURL := strings.Join(urlParts, "&");
 
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("GET %s",fullURL))
-	}
-	
-	response, err := http.Get(fullURL)
-	logError(err)
-	defer response.Body.Close()
-
-	responseBody, err := ioutil.ReadAll(response.Body)
-	logError(err)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
+	responseBody := util.DoHTTPRequest(http.MethodGet, fullURL, nil)
 
 	var responseData APIResponse
 	json.Unmarshal([]byte(responseBody), &responseData)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
+	util.DebugResponseData(fmt.Sprintf("%s", responseData))
 
 	return responseData.Stories
 }
 
-// APIListStories :
+// APIListCurrentStories :
 func APIListCurrentStories() {
 	fmt.Println()
 	stories := GetStories("changed", "state:\"In Development\"")

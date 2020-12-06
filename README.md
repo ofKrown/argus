@@ -87,11 +87,14 @@
 
 ```json
 {
-    "name": "Menu Name", // required, display name of your menu/submenu
-    "entries": [{...}], // required, list of MenuEntry
+    "name": "Menu Name",
+    "entries": [{...}],
 }
 
 ```
+
+- `name`, `string`, **required**, display name of your menu/submenu
+- `entries`, `Array<MenuEntry>`, **required**
 
 `MenuEntry`
 

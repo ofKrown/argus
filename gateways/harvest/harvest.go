@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"encoding/json"
 	"net/http"
-	"io/ioutil"
+	"net/url"
 	"time"
 	"strings"
 	"strconv"
-	"bytes"
 	"github.com/gookit/color"
 	"../../configuration"
 	"../../util"
 )
-
-type colorizeDelegate func (...interface {}) string
 
 // User : 
 type User struct {
@@ -99,6 +96,7 @@ type CompanyResponse struct {
 	Name string `json:"name"`
 	UseTimestamps bool `json:"wants_timestamp_timers"`
 }
+
 func (me CompanyResponse) String() string {
 	name := color.FgGreen.Render(me.Name)
 	url := color.FgWhite.Render(me.FullDomain)
@@ -110,111 +108,77 @@ func (me CompanyResponse) String() string {
 	return fmt.Sprintf("[%s] %s, Timestamps: %s", name, url, timestampsColored)
 }
 
-func getMe() User{
-	completeConfig := configuration.GetConfig()
-	config := completeConfig.Harvest
-	requestURL := fmt.Sprintf("%[1]s/%[2]s%[3]s%[4]s%[5]s", config.HarvestAPIURL, "users/me?access_token=", config.HarvestToken, "&account_id=", config.HarvestAccountID)
-	
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("GET %s",requestURL))
-	}
-	
-	response, err := http.Get(requestURL)
-	util.LogError(err)
-	defer response.Body.Close()
-	responseBody, err := ioutil.ReadAll(response.Body)
-	util.LogError(err)
-	
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
-	
-	var responseData User
-	json.Unmarshal([]byte(responseBody), &responseData)
+// ******* //
+// Private //
+// ******* //
 
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
+func getHarvestBaseQuery() url.Values {
+	config := configuration.GetConfig().Harvest
+	var query url.Values = url.Values{}
+	query.Add("access_token", config.HarvestToken)
+	query.Add("account_id", config.HarvestAccountID)
 
-	return responseData
+	return query
 }
 
-func getMyEntries(userID int64, startDate string) TimeEntriesResponse{
+func getMe() (user User){
 	completeConfig := configuration.GetConfig()
 	config := completeConfig.Harvest
-	requestURL := fmt.Sprintf("%[1]s/%[2]s%[3]s%[4]s%[5]s%[6]s%[7]d%[8]s%[9]s", config.HarvestAPIURL, "time_entries?access_token=", config.HarvestToken, "&account_id=", config.HarvestAccountID, "&user_id=", userID, "&from=", startDate)
 
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("GET %s",requestURL))
-	}
-
-	response, err := http.Get(requestURL)
-	util.LogError(err)
-	defer response.Body.Close()
-	responseBody, err := ioutil.ReadAll(response.Body)
-	util.LogError(err)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
-
-	var responseData TimeEntriesResponse
-	json.Unmarshal([]byte(responseBody), &responseData)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
-
-	return responseData
-}
-
-func getCompany() CompanyResponse {
-	completeConfig := configuration.GetConfig()
-	config := completeConfig.Harvest
-	requestURL := fmt.Sprintf("%[1]s/%[2]s%[3]s%[4]s%[5]s", config.HarvestAPIURL, "time_entries?access_token=", config.HarvestToken, "&account_id=", config.HarvestAccountID)
-
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("GET %s",requestURL))
-	}
+	query := getHarvestBaseQuery()
+	requestURL := fmt.Sprintf("%s/users/me?%s", config.HarvestAPIURL, query.Encode())
 	
-	response, err := http.Get(requestURL)
+	responseBody := util.DoHTTPRequest(http.MethodGet, requestURL, nil)
+	
+	json.Unmarshal([]byte(responseBody), &user)
+	util.DebugResponseData(fmt.Sprintf("%s", user))
 
-	util.LogError(err)
-	defer response.Body.Close()
-	responseBody, err := ioutil.ReadAll(response.Body)
-	util.LogError(err)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
-
-	var responseData CompanyResponse
-	json.Unmarshal([]byte(responseBody), &responseData)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
-
-	return responseData
+	return
 }
 
-func startTimeEntry(projectID int64, taskID int64) TimeEntry {
+func getMyEntries(userID int64, startDate string) (timeEntriesResponse TimeEntriesResponse){
+	completeConfig := configuration.GetConfig()
+	config := completeConfig.Harvest
+
+	query := getHarvestBaseQuery()
+	query.Add("user_id", fmt.Sprintf("%d", userID))
+	query.Add("from", startDate)
+
+	requestURL := fmt.Sprintf("%s/time_entries?%s", config.HarvestAPIURL, query.Encode())
+
+	responseBody := util.DoHTTPRequest(http.MethodGet, requestURL, nil)
+
+	json.Unmarshal([]byte(responseBody), &timeEntriesResponse)
+	util.DebugResponseData(fmt.Sprintf("%s", timeEntriesResponse))
+
+	return
+}
+
+func getCompany() (companyResponse CompanyResponse) {
+	completeConfig := configuration.GetConfig()
+	config := completeConfig.Harvest
+	
+	query := getHarvestBaseQuery()
+	requestURL := fmt.Sprintf("%s/time_entries?%s", config.HarvestAPIURL, query.Encode())
+
+	responseBody := util.DoHTTPRequest(http.MethodGet, requestURL, nil)
+	
+	json.Unmarshal([]byte(responseBody), &companyResponse)
+	util.DebugResponseData(fmt.Sprintf("%s", companyResponse))
+
+	return
+}
+
+func startTimeEntry(projectID int64, taskID int64) (timeEntry TimeEntry) {
 	start := time.Now()
 	startDate := getFormatedDate(start)
 	
 	completeConfig := configuration.GetConfig()
 	config := completeConfig.Harvest
 
-	requestURL := fmt.Sprintf("%[1]s/%[2]s%[3]s%[4]s%[5]s", config.HarvestAPIURL, "time_entries?access_token=", config.HarvestToken, "&account_id=", config.HarvestAccountID)
+	query := getHarvestBaseQuery()
+	requestURL := fmt.Sprintf("%s/time_entries?%s", config.HarvestAPIURL, query.Encode())
+
 	startTaskBody := &StartTaskDTO {
 		ProjectID: projectID,
 		TaskID: taskID,
@@ -222,78 +186,37 @@ func startTimeEntry(projectID int64, taskID int64) TimeEntry {
 	}
 
 	requestBody, err := json.Marshal(startTaskBody)
-	
 	util.LogError(err)
 
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("POST %s",requestURL))
-		fmt.Println("REQUEST BODY")
-		fmt.Println(requestBody)
-	}
+	responseBody := util.DoHTTPRequest(http.MethodPost, requestURL, requestBody)
 
+	json.Unmarshal([]byte(responseBody), &timeEntry)
+	util.DebugResponseData(fmt.Sprintf("%s", timeEntry))
 
-	response, err := http.Post(requestURL, "application/json", bytes.NewBuffer(requestBody))
-	util.LogError(err)
-	defer response.Body.Close()
-	responseBody, err := ioutil.ReadAll(response.Body)
-	util.LogError(err)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
-
-	var responseData TimeEntry
-	json.Unmarshal([]byte(responseBody), &responseData)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
-
-	return responseData
+	return
 }
 
-func doTimeEntryPatch(action string, timeEntryID int64) TimeEntry {
+func doTimeEntryPatch(action string, timeEntryID int64) (timeEntry TimeEntry) {
 	completeConfig := configuration.GetConfig()
 	config := completeConfig.Harvest
+	query := getHarvestBaseQuery()
+	requestURL := fmt.Sprintf("%s/time_entries/%d/%s?%s", config.HarvestAPIURL, timeEntryID, action, query.Encode())
 
-	requestURL := fmt.Sprintf("%[1]s/%[2]s/%[3]d/%[4]s%[5]s%[6]s%[7]s%[8]s", config.HarvestAPIURL, "time_entries", timeEntryID, action,"?access_token=", config.HarvestToken, "&account_id=", config.HarvestAccountID)
-	client := &http.Client{}
-	
-	req, err := http.NewRequest(http.MethodPatch, requestURL, nil)
+	responseBody := util.DoHTTPRequest(http.MethodPatch, requestURL, nil)
+		
+	json.Unmarshal([]byte(responseBody), &timeEntry)
+	util.DebugResponseData(fmt.Sprintf("%s", timeEntry))
 
-	if (completeConfig.Debug == true) {
-		fmt.Println("REQUEST")
-		fmt.Println(fmt.Sprintf("PATCH %s",requestURL))
-	}
-
-	response, err := client.Do(req)
-	util.LogError(err)
-	defer response.Body.Close()
-	responseBody, err := ioutil.ReadAll(response.Body)
-	util.LogError(err)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE")
-		fmt.Println(response)
-	}
-
-	var responseData TimeEntry
-	json.Unmarshal([]byte(responseBody), &responseData)
-
-	if  (completeConfig.Debug == true) {
-		fmt.Println("RESPONSE DATA")
-		fmt.Println(responseData)
-	}
-
-	return responseData
+	return 
 }
 
 func getFormatedDate(date time.Time) string {
 	return fmt.Sprintf("%04d-%02d-%02d", date.Year(), date.Month(), date.Day())
 }
+
+// ****** //
+// Public //
+// ****** //
 
 // APIShowMe :
 func APIShowMe() {
@@ -367,7 +290,6 @@ func APIContinueMostRecentNonDaily(argument string) {
 				break
 			}
 		}
-
 	}
 }
 
