@@ -9,6 +9,7 @@ import (
 	"../gateways/clubhouse"
 	"../gateways/harvest"
 	"../configuration"
+	"errors"
 )
 
 func isExit(char rune, key keyboard.Key) bool {
@@ -75,6 +76,12 @@ func renderMenu(menu *configuration.Menu, label string, isTop bool) {
 	
 }
 
+func noop() {}
+
+func echo(argument string) {
+	fmt.Println(color.FgWhite.Render(argument));
+}
+
 func getActionMap() map[string]configuration.ActionDelegate {
 	apiFunctions := make(map[string]configuration.ActionDelegate)
 
@@ -84,6 +91,7 @@ func getActionMap() map[string]configuration.ActionDelegate {
 	apiFunctions["api:harvest:showCompany"] = harvest.APIShowCompany // Admin Permission required
 	apiFunctions["api:harvest:showMe"] = harvest.APIShowMe
 	apiFunctions["api:harvest:stopActive"] = harvest.APIStopActive
+	apiFunctions["noop"] = noop;
 	
 	return apiFunctions
 }
@@ -93,22 +101,51 @@ func getActionWithArgumentMap() map[string]configuration.ActionWithArgumentDeleg
 	
 	apiFunctions["api:harvest:startTask"] = harvest.APIStartTask
 	apiFunctions["api:harvest:continueMostRecentNonDaily"] = harvest.APIContinueMostRecentNonDaily
-	
+	apiFunctions["echo"] = echo;
+
 	return apiFunctions
 }
 
 
-func handleMenu(menu *configuration.Menu, parent string) {
+func handleMenu(menu *configuration.Menu, parent string, cliArgument string, hasArgument bool) {
+	if(hasArgument && len(cliArgument) == 0) {
+		os.Exit(0)
+	}
+
 	label := menu.Name
 	if (len(parent) == 0) {
 		label = menu.Name
 	} else {
 		label = fmt.Sprintf("%s -> %s", parent, menu.Name)
 	}
-	renderMenu(menu, label, len(parent) == 0)
-	fmt.Print("? ")
-	char, key, _ := getNextKey()
-	for !isExit(char, key) {
+	
+	char := 'A'
+	key := keyboard.KeyEsc
+	_ = errors.New("no error")
+	autoProcess := false
+	
+	if(hasArgument) {
+		if(len(cliArgument) > 0){
+			autoProcess = true
+			
+			first, _ := utf8.DecodeRuneInString(cliArgument)
+			char = first
+			
+			cliArgument = cliArgument[1:]
+		} else {
+			// no characters in argument left, exit application cause we are in autoProcess mode
+			os.Exit(0)
+		}
+	} else {
+		renderMenu(menu, label, len(parent) == 0)
+		fmt.Print("? ")
+	}
+	
+	if(!autoProcess) {
+		char, key, _ = getNextKey()
+	}
+	
+	for autoProcess || !isExit(char, key) {
 		fmt.Printf("%c", char)
 		
 		selectedEntryIndex := -1
@@ -148,18 +185,43 @@ func handleMenu(menu *configuration.Menu, parent string) {
 
 
 			if(len(selectedEntry.Menu.Name) > 0) {
-				handleMenu(&selectedEntry.Menu, label)
+				handleMenu(&selectedEntry.Menu, label, cliArgument, hasArgument)
 			}
 		}
 
-		renderMenu(menu, label, len(parent) == 0);
-		fmt.Print("? ")
-		char, _, _ = getNextKey()
+		if(hasArgument) {
+			if(len(cliArgument) > 0){
+				autoProcess = true
+			
+				first, _ := utf8.DecodeRuneInString(cliArgument)
+				char = first
+			
+				cliArgument = cliArgument[1:]
+			} else {
+				// no characters in argument left, exit application cause we are in autoProcess mode
+				os.Exit(0)
+			}
+		} else {
+			renderMenu(menu, label, len(parent) == 0);
+			fmt.Print("? ")
+		}
+		
+		if(!autoProcess) {
+			char, key, _ = getNextKey()
+		}
 	}
 }
 
 // Run : Main entry point for argus
 func Run() {
 	config := configuration.GetConfig()
-	handleMenu(&config.Menu, "")
+	cliArgument := ""
+	hasArgument := false
+	
+	if(len(os.Args) > 1) {
+		cliArgument = os.Args[1]
+		hasArgument = true
+	} 
+	
+	handleMenu(&config.Menu, "", cliArgument, hasArgument)
 }
